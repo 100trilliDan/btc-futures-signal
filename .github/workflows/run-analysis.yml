@@ -1,0 +1,39 @@
+name: BTC Signal and Backtest
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Signal scan
+        env:
+          SYMBOL: BTC/USDT:USDT
+          RISK_PCT: "0.5"
+          ACCOUNT_EQUITY_USDT: "1000"
+          MAX_NOTIONAL_MULTIPLE: "1.0"
+          FEE_RATE: "0.0005"
+          SLIPPAGE_RATE: "0.0002"
+        run: python run_analysis.py
+      - name: Backtest
+        run: python backtest.py --limit 1000
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add latest_signal.json latest_signal.md backtest_results.json
+          git diff --cached --quiet || git commit -m "Update BTC analysis results"
+          git push
